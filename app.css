@@ -181,3 +181,17 @@ select {
 .error {
   border: 1px solid #960046f5;
 }
+
+.hide {
+  display: none;
+}
+
+#restart {
+  font-variant: small-caps;
+  cursor: pointer;
+}
+
+#restart:hover{
+  color: #6057dcf5;
+  text-decoration: underline;
+}

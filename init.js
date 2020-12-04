@@ -75,8 +75,23 @@
     },
   ];
 
+  const tileColors = [
+    '009687f5',
+    'dc7657f5',
+    '4bb3c1fa',
+    'fac069f9',
+    '67a866f9',
+    'b94169fa',
+    '7f62b3fa',
+    '9fc376f9',
+    '677bcbfa',
+  ];
   // base class
   class Creature {
+    /**
+     *
+     * @param {{weight: string, diet: string}} info
+     */
     constructor(info) {
       this.weight = info.weight;
       this.diet = info.diet;
@@ -112,69 +127,115 @@
     }
   }
 
-  console.log(dinoList);
+  // cached the DOMs to improve performance
+  const DOMCache = {
+    form: document.getElementById('dino-compare'),
+    grid: document.getElementById('grid'),
+    inputs: {
+      name: document.getElementById('name'),
+      feet: document.getElementById('feet'),
+      inches: document.getElementById('inches'),
+      weight: document.getElementById('weight'),
+      diet: document.getElementById('diet'),
+    },
+    submit: document.getElementById('btn'),
+    restart: document.getElementById('restart'),
+  };
+
+  DOMCache.restart.addEventListener('click', toggleView);
 
   // Create Human Object
-  const human = new Human({});
-  console.log(human);
-
   // Use IIFE to get human data from form
-  ((human) => {
-    // cached the DOMs to imporve performance
-    const domsCache = Object.keys(human).map((id) =>
-      document.getElementById(id)
-    );
-
-    document.getElementById('btn').addEventListener('click', () => {
-      let errCount = 0;
-      const formInputData = {};
-      domsCache.forEach((domElem) => {
-        if (!domElem.value) {
-          errCount++;
-          domElem.classList.add('error');
-        } else {
-          domElem.classList.remove('error');
-          formInputData[domElem.id] = domElem.value;
-        }
-      });
-
-      if (!errCount) {
-        Object.assign(human, formInputData);
-      }
+  const humanData = (function (submit) {
+    /**
+     *
+     *  Extracting and validaing form data is repetitive task
+     *  Have no idea why do I need to use
+     *
+     */
+    submit.addEventListener('click', function () {
+      validateFormData(getHumanData());
     });
-  })(human);
+
+    function getHumanData() {
+      const inputs = DOMCache.inputs;
+      const humanData = {};
+      Object.keys(inputs).forEach((key) => {
+        humanData[key] = inputs[key].value;
+      });
+      return humanData;
+    }
+
+    return getHumanData();
+  })(DOMCache.submit);
+
+  const human = new Human(humanData);
+
+  function validateFormData(data) {
+    Object.assign(human, data);
+    const inputs = DOMCache.inputs;
+    let errors = 0;
+
+    const nameInvalid = !human.name && ++errors;
+    showError(inputs.name, nameInvalid);
+
+    const feetInvalid =
+      (!human.feet || human.feet > 8 || human.height > 90) && ++errors;
+    showError(inputs.feet, feetInvalid);
+
+    const inchesInvalid =
+      (!human.inches || human.inches > 11 || human.height > 90) && ++errors;
+    showError(inputs.inches, inchesInvalid);
+
+    const weightInvalid = (human.weight < 50 || human.weight > 350) && ++errors;
+    showError(inputs.weight, weightInvalid);
+
+    if (!errors) {
+      addTilesTo(DOMCache.grid);
+    }
+  }
+
+  /**
+   * @param {HTMLInputElement} dom
+   */
+  function showError(dom, hasErr) {
+    if (hasErr) {
+      dom.classList.add('error');
+    } else {
+      dom.classList.remove('error');
+    }
+  }
 
   /**
    * @param {Human} human
-   * @returns {String}
+   * @returns {string}
    */
   Dino.prototype.compareWeight = function (human) {
     const ratio = this.weight / human.weight;
-
     if (ratio < 1) {
       // Poor dinosaur, why you are so small? It must be Pteranodon or Pigeon. Dear user/reviewer, pls don't input the weight of NodeJS modules folder..
       // This program was never intended to calculate the weight of blackhole, NodeJS modules, etc...";
-      return `This species of dinosaur were small.It is even smaller than ${human.weight}`;
+      return `This species of dinosaur were small.It is even smaller than ${human.name}`;
     }
-    return `${Math.round(ratio)}x bigger than ${human.name}`;
+    return `${Math.round(ratio)}x times bigger than ${human.name}`;
   };
 
   /**
    * @param {Human} human
-   * @returns {String}
+   * @returns {string}
    */
   Dino.prototype.compareHeight = function (human) {
     if (this.height < human.height) {
       return `This dinosaur is even shorter than ${human.name}. Maybe a Pokemon`;
     }
-    return `This dinosaur is ${this.height - human.height} taller than ${
+    return `This dinosaur is ${this.height - human.height}ft taller than ${
       human.name
     }`;
   };
 
   /**
    * @param {Human} human
-   * @returns {String}
+   * @returns {string}
    */
   Dino.prototype.compareDiet = function (human) {
     if (this.diet.toLowerCase() === human.diet.toLowerCase()) {
@@ -186,17 +247,109 @@
 
   /**
    * @param {Human} human
-   * @returns {String}
+   * @returns {string[]}
+   */
+  Dino.prototype.getInfos = function (human) {
+    return [
+      this.where,
+      this.when,
+      this.fact,
+      this.compareDiet(human),
+      this.compareHeight(human),
+      this.compareWeight(human),
+    ];
+  };
+
+  /**
+   * @param {Human} human
+   * @returns {string}
    */
   Dino.prototype.getRandomInfo = function (human) {
     if (this.species.toLowerCase() === 'pigeon') {
       return this.fact;
     }
 
-    
+    const possibleValues = this.getInfos(human);
+
+    return possibleValues[Math.floor(Math.random() * possibleValues.length)];
   };
 
-  function generateTiles() {}
+  /**
+   * @param {string} title
+   * @param {string} imageUrl
+   * @param {string} fact
+   * @returns {HTMLElement}
+   */
+  function createTile(title, imageUrl, fact) {
+    const tile = document.createElement('div');
+    tile.classList.add('grid-item');
 
-  app.dinos = dinoList;
-})((window.app = window.app || {}));
+    const header = document.createElement('h3');
+    header.innerHTML = title;
+
+    const img = document.createElement('img');
+    img.src = imageUrl;
+
+    tile.appendChild(header);
+    tile.appendChild(img);
+
+    if (fact) {
+      const p = document.createElement('p');
+      p.innerHTML = fact;
+      tile.append(p);
+    }
+
+    return tile;
+  }
+
+  function addTilesTo(grid) {
+    toggleView();
+
+    shuffle(tileColors);
+
+    const tiles = dinoList.map((d, i) => {
+      const tile = createTile(
+        d.species,
+        `images/${d.species.toLowerCase()}.png`,
+        d.getRandomInfo(human)
+      );
+      tile.style.backgroundColor = '#' + tileColors[i];
+      return tile;
+    });
+
+    const humanTile = createTile(human.name, 'images/human.png', '');
+    humanTile.style.backgroundColor = '#' + tileColors[tileColors.length - 1];
+
+    shuffle(tiles);
+
+    tiles.splice(4, 0, humanTile);
+
+    tiles.forEach((tile) => grid.appendChild(tile));
+  }
+
+  function toggleView() {
+    const isFormView = !DOMCache.form.classList.contains('hide');
+    const { form, restart, grid } = DOMCache;
+    if (isFormView) {
+      form.classList.add('hide');
+      restart.classList.remove('hide');
+    } else {
+      grid.innerHTML = '';
+      form.classList.remove('hide');
+      restart.classList.add('hide');
+    }
+  }
+  /**
+   * @param {Array} array
+   */
+  function shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      let j = Math.floor(Math.random() * (i + 1));
+      let temp = array[i];
+      array[i] = array[j];
+      array[j] = temp;
+    }
+  }
+
+  Object.assign(app, {});
+})((window.DinoApp = window.DinoApp || {}));
